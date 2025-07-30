@@ -142,28 +142,18 @@
     Created by <strong>CMDR Eron Vex</strong> · Version 1.0
   </p>
 
- <script>
+<script>
   async function fetchSuggestions(query) {
-    const [systemRes, stationRes] = await Promise.all([
-      fetch(`https://www.edsm.net/api-v1/systems?systemName=${encodeURIComponent(query)}&showId=1&limit=5`),
-      fetch(`https://www.edsm.net/api-v1/stations?stationName=${encodeURIComponent(query)}&showSystem=1&limit=5`)
-    ]);
+    const systemsRes = await fetch(`https://www.edsm.net/api-v1/systems?systemName=${encodeURIComponent(query)}&showId=1&limit=5`);
+    const systemsData = await systemsRes.json();
 
-    const systems = await systemRes.json();
-    const stations = await stationRes.json();
+    const stationsRes = await fetch(`https://www.edsm.net/api-v1/stations?stationName=${encodeURIComponent(query)}&showSystem=1&limit=5`);
+    const stationsData = await stationsRes.json();
 
-    const systemSuggestions = Array.isArray(systems)
-      ? systems.map(s => ({ name: s.name, display: `${s.name} (System)` }))
-      : [];
+    const systems = Array.isArray(systemsData) ? systemsData.map(s => s.name) : [];
+    const stations = Array.isArray(stationsData) ? stationsData.map(s => `${s.name} (${s.system})`) : [];
 
-    const stationSuggestions = Array.isArray(stations)
-      ? stations.map(s => ({
-          name: s.name,
-          display: `${s.name} (in ${s.system?.name || "Unknown"})`
-        }))
-      : [];
-
-    return [...stationSuggestions, ...systemSuggestions];
+    return [...systems, ...stations];
   }
 
   function setupAutocomplete(inputId, suggestionsId) {
@@ -176,12 +166,12 @@
       if (query.length < 3) return;
 
       const suggestions = await fetchSuggestions(query);
-      suggestions.forEach(s => {
+      suggestions.forEach(name => {
         const div = document.createElement("div");
         div.classList.add("suggestion-item");
-        div.textContent = s.display;
+        div.textContent = name;
         div.onclick = () => {
-          input.value = s.name;
+          input.value = name;
           suggestionsBox.innerHTML = "";
         };
         suggestionsBox.appendChild(div);
@@ -199,18 +189,12 @@
   setupAutocomplete("system2", "suggestions2");
 
   async function getSystemCoords(name) {
-    const sysRes = await fetch(`https://www.edsm.net/api-v1/system?systemName=${encodeURIComponent(name)}&showCoordinates=1`);
-    const sysData = await sysRes.json();
+    // Remove station name if in format "Station Name (System Name)"
+    const cleanName = name.includes("(") ? name.split("(")[1].replace(")", "").trim() : name;
+
+    const sys = await fetch(`https://www.edsm.net/api-v1/system?systemName=${encodeURIComponent(cleanName)}&showCoordinates=1`);
+    const sysData = await sys.json();
     if (sysData && sysData.coords) return sysData.coords;
-
-    const stationRes = await fetch(`https://www.edsm.net/api-v1/station?stationName=${encodeURIComponent(name)}&showSystem=1`);
-    const stationData = await stationRes.json();
-
-    if (stationData && stationData.system?.name) {
-      const fallbackRes = await fetch(`https://www.edsm.net/api-v1/system?systemName=${encodeURIComponent(stationData.system.name)}&showCoordinates=1`);
-      const fallbackData = await fallbackRes.json();
-      if (fallbackData && fallbackData.coords) return fallbackData.coords;
-    }
 
     throw new Error(`"${name}" not found as system or station.`);
   }
@@ -225,12 +209,12 @@
     const jumpRange = parseFloat(document.getElementById("jumpRange").value);
     const result = document.getElementById("result");
 
-    result.style.color = "#c5c6c7";
+    result.style.color = "#c5c6c7"; // Reset to normal color
     result.textContent = "";
 
     if (!name1 || !name2) {
       result.style.color = "red";
-      result.textContent = "Please fill in both origin and destination.";
+      result.textContent = "Fill the fields: origin and destination.";
       return;
     }
 
@@ -245,7 +229,6 @@
       const dz = coords1.z - coords2.z;
 
       const distance = Math.sqrt(dx * dx + dy * dy + dz * dz).toFixed(2);
-
       let jumpsText = "";
       if (!isNaN(jumpRange) && jumpRange > 0) {
         const jumps = Math.ceil(distance / jumpRange);
@@ -254,8 +237,8 @@
 
       result.textContent = `Distance between "${name1}" and "${name2}": ${distance} LY${jumpsText}`;
     } catch (error) {
-      result.textContent = error.message;
       result.style.color = "red";
+      result.textContent = error.message;
     }
 
     showLoader(false);
