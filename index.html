@@ -137,147 +137,145 @@
     <p id="result"></p>
   </div>
 
-  <!-- Footer -->
   <p class="footer">
     Created by <strong>CMDR Eron Vex</strong> · Version 1.0
   </p>
 
-<script>
-  async function fetchSuggestions(query) {
-    const systemsRes = await fetch(`https://www.edsm.net/api-v1/systems?systemName=${encodeURIComponent(query)}&showId=1&limit=5`);
-    const systemsData = await systemsRes.json();
+  <script>
+    async function fetchSuggestions(query) {
+      const systemsRes = await fetch(`https://www.edsm.net/api-v1/systems?systemName=${encodeURIComponent(query)}&showId=1&limit=5`);
+      const systemsData = await systemsRes.json();
 
-    const stationsRes = await fetch(`https://www.edsm.net/api-v1/stations?stationName=${encodeURIComponent(query)}&showSystem=1&limit=5`);
-    const stationsData = await stationsRes.json();
+      const stationsRes = await fetch(`https://www.edsm.net/api-v1/stations?stationName=${encodeURIComponent(query)}&showSystem=1&limit=5`);
+      const stationsData = await stationsRes.json();
 
-    const systems = Array.isArray(systemsData) ? systemsData.map(s => s.name) : [];
-    const stations = Array.isArray(stationsData) ? stationsData.map(s => `${s.name} (${s.system})`) : [];
+      const systems = Array.isArray(systemsData) ? systemsData.map(s => s.name) : [];
+      const stations = Array.isArray(stationsData) ? stationsData.map(s => \`\${s.name} (\${s.system})\`) : [];
 
-    return [...systems, ...stations];
-  }
-
-  function setupAutocomplete(inputId, suggestionsId) {
-    const input = document.getElementById(inputId);
-    const suggestionsBox = document.getElementById(suggestionsId);
-
-    input.addEventListener("input", async () => {
-      const query = input.value.trim();
-      suggestionsBox.innerHTML = "";
-      if (query.length < 3) return;
-
-      const suggestions = await fetchSuggestions(query);
-      suggestions.forEach(name => {
-        const div = document.createElement("div");
-        div.classList.add("suggestion-item");
-        div.textContent = name;
-        div.onclick = () => {
-          input.value = name;
-          suggestionsBox.innerHTML = "";
-        };
-        suggestionsBox.appendChild(div);
-      });
-    });
-
-    input.addEventListener("blur", () => {
-      setTimeout(() => {
-        suggestionsBox.innerHTML = "";
-      }, 200);
-    });
-  }
-
-  setupAutocomplete("system1", "suggestions1");
-  setupAutocomplete("system2", "suggestions2");
-
-  async function getSystemCoords(name) {
-    // Remove station name if in format "Station Name (System Name)"
-    const cleanName = name.includes("(") ? name.split("(")[1].replace(")", "").trim() : name;
-
-    const sys = await fetch(`https://www.edsm.net/api-v1/system?systemName=${encodeURIComponent(cleanName)}&showCoordinates=1`);
-    const sysData = await sys.json();
-    if (sysData && sysData.coords) return sysData.coords;
-
-    throw new Error(`"${name}" not found as system or station.`);
-  }
-
-  function showLoader(show) {
-    document.getElementById("loader").style.display = show ? "block" : "none";
-  }
-
-  async function calculateDistance() {
-    const name1 = document.getElementById("system1").value.trim();
-    const name2 = document.getElementById("system2").value.trim();
-    const jumpRange = parseFloat(document.getElementById("jumpRange").value);
-    const result = document.getElementById("result");
-
-    result.style.color = "#c5c6c7"; // Reset to normal color
-    result.textContent = "";
-
-    if (!name1 || !name2) {
-      result.style.color = "red";
-      result.textContent = "Fill the fields: origin and destination.";
-      return;
+      return [...systems, ...stations];
     }
 
-    showLoader(true);
+    function setupAutocomplete(inputId, suggestionsId) {
+      const input = document.getElementById(inputId);
+      const suggestionsBox = document.getElementById(suggestionsId);
 
-    try {
-      const coords1 = await getSystemCoords(name1);
-      const coords2 = await getSystemCoords(name2);
+      input.addEventListener("input", async () => {
+        const query = input.value.trim();
+        suggestionsBox.innerHTML = "";
+        if (query.length < 3) return;
 
-      const dx = coords1.x - coords2.x;
-      const dy = coords1.y - coords2.y;
-      const dz = coords1.z - coords2.z;
+        const suggestions = await fetchSuggestions(query);
+        suggestions.forEach(name => {
+          const div = document.createElement("div");
+          div.classList.add("suggestion-item");
+          div.textContent = name;
+          div.onclick = () => {
+            input.value = name;
+            suggestionsBox.innerHTML = "";
+          };
+          suggestionsBox.appendChild(div);
+        });
+      });
 
-      const distance = Math.sqrt(dx * dx + dy * dy + dz * dz).toFixed(2);
-      let jumpsText = "";
-      if (!isNaN(jumpRange) && jumpRange > 0) {
-        const jumps = Math.ceil(distance / jumpRange);
-        jumpsText = ` | Estimated Jumps: ${jumps}`;
+      input.addEventListener("blur", () => {
+        setTimeout(() => {
+          suggestionsBox.innerHTML = "";
+        }, 200);
+      });
+    }
+
+    setupAutocomplete("system1", "suggestions1");
+    setupAutocomplete("system2", "suggestions2");
+
+    async function getSystemCoords(name) {
+      const cleanName = name.includes("(") ? name.split("(")[1].replace(")", "").trim() : name;
+
+      const sys = await fetch(\`https://www.edsm.net/api-v1/system?systemName=\${encodeURIComponent(cleanName)}&showCoordinates=1\`);
+      const sysData = await sys.json();
+      if (sysData && sysData.coords) return sysData.coords;
+
+      throw new Error(\`"\${name}" not found as system or station.\`);
+    }
+
+    function showLoader(show) {
+      document.getElementById("loader").style.display = show ? "block" : "none";
+    }
+
+    async function calculateDistance() {
+      const name1 = document.getElementById("system1").value.trim();
+      const name2 = document.getElementById("system2").value.trim();
+      const jumpRange = parseFloat(document.getElementById("jumpRange").value);
+      const result = document.getElementById("result");
+
+      result.style.color = "#c5c6c7";
+      result.textContent = "";
+
+      if (!name1 || !name2) {
+        result.style.color = "red";
+        result.textContent = "Fill the fields: origin and destination.";
+        return;
       }
 
-      result.textContent = `Distance between "${name1}" and "${name2}": ${distance} LY${jumpsText}`;
-    } catch (error) {
-      result.style.color = "red";
-      result.textContent = error.message;
+      showLoader(true);
+
+      try {
+        const coords1 = await getSystemCoords(name1);
+        const coords2 = await getSystemCoords(name2);
+
+        const dx = coords1.x - coords2.x;
+        const dy = coords1.y - coords2.y;
+        const dz = coords1.z - coords2.z;
+
+        const distance = Math.sqrt(dx * dx + dy * dy + dz * dz).toFixed(2);
+        let jumpsText = "";
+        if (!isNaN(jumpRange) && jumpRange > 0) {
+          const jumps = Math.ceil(distance / jumpRange);
+          jumpsText = \` | Estimated Jumps: \${jumps}\`;
+        }
+
+        result.textContent = \`Distance between "\${name1}" and "\${name2}": \${distance} LY\${jumpsText}\`;
+      } catch (error) {
+        result.style.color = "red";
+        result.textContent = error.message;
+      }
+
+      showLoader(false);
     }
 
-    showLoader(false);
-  }
+    // Starfield animation
+    const canvas = document.getElementById("stars");
+    const ctx = canvas.getContext("2d");
 
-  // Starfield animation
-  const canvas = document.getElementById("stars");
-  const ctx = canvas.getContext("2d");
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
 
-  function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-  }
+    resizeCanvas();
+    window.addEventListener("resize", resizeCanvas);
 
-  resizeCanvas();
-  window.addEventListener("resize", resizeCanvas);
+    const stars = Array.from({ length: 150 }, () => ({
+      x: Math.random() * window.innerWidth,
+      y: Math.random() * window.innerHeight,
+      radius: Math.random() * 1.2,
+      alpha: Math.random(),
+      delta: (Math.random() * 0.02) + 0.005,
+    }));
 
-  const stars = Array.from({ length: 150 }, () => ({
-    x: Math.random() * window.innerWidth,
-    y: Math.random() * window.innerHeight,
-    radius: Math.random() * 1.2,
-    alpha: Math.random(),
-    delta: (Math.random() * 0.02) + 0.005,
-  }));
+    function drawStars() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      stars.forEach(star => {
+        star.alpha += star.delta;
+        if (star.alpha <= 0 || star.alpha >= 1) star.delta *= -1;
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+        ctx.fillStyle = \`rgba(255, 255, 255, \${star.alpha})\`;
+        ctx.fill();
+      });
+      requestAnimationFrame(drawStars);
+    }
 
-  function drawStars() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    stars.forEach(star => {
-      star.alpha += star.delta;
-      if (star.alpha <= 0 || star.alpha >= 1) star.delta *= -1;
-      ctx.beginPath();
-      ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(255, 255, 255, ${star.alpha})`;
-      ctx.fill();
-    });
-    requestAnimationFrame(drawStars);
-  }
-
-  drawStars();
-</script>
+    drawStars();
+  </script>
 </body>
 </html>
