@@ -3,51 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Elite Dangerous Tools</title>
+  <title>Elite Dangerous Route Planner</title>
   <style>
     body {
-      margin: 0;
       font-family: sans-serif;
-      background: url('backround1.png') no-repeat center center fixed;
+      background-image: url('backround1.png');
       background-size: cover;
+      background-position: center;
+      background-attachment: fixed;
       color: #c5c6c7;
       display: flex;
       flex-direction: column;
       align-items: center;
-      min-height: 100vh;
-    }
-
-    .tabs {
-      display: flex;
-      justify-content: center;
-      margin-top: 30px;
-    }
-
-    .tab-button {
-      background-color: #1f2833;
-      color: #fff;
-      border: none;
-      padding: 10px 20px;
-      margin: 0 5px;
-      cursor: pointer;
-      border-radius: 8px;
-      font-weight: bold;
-    }
-
-    .tab-button.active {
-      background-color: #45a29e;
-      color: black;
-    }
-
-    .tab-content {
-      display: none;
-      margin-top: 20px;
-      width: 100%;
-      max-width: 600px;
-    }
-
-    .tab-content.active {
-      display: block;
+      padding: 40px;
+      margin: 0;
+      overflow-x: hidden;
     }
 
     .container {
@@ -55,7 +25,9 @@
       padding: 20px;
       border-radius: 10px;
       width: 100%;
+      max-width: 450px;
       box-shadow: 0 0 20px rgba(0,0,0,0.6);
+      z-index: 1;
       margin-bottom: 20px;
     }
 
@@ -93,6 +65,7 @@
     .suggestions {
       position: absolute;
       background-color: #1f2833;
+      border: none;
       max-height: 150px;
       overflow-y: auto;
       width: 100%;
@@ -108,6 +81,15 @@
     .suggestion-item:hover {
       background-color: #66fcf1;
       color: black;
+    }
+
+    canvas#stars {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -2;
     }
 
     .spinner {
@@ -126,80 +108,55 @@
     }
 
     .footer {
-      margin: 20px;
+      margin-top: 20px;
       font-size: 14px;
       color: #888;
       text-align: center;
     }
-
-    iframe {
-      width: 100%;
-      height: 700px;
-      border: none;
-      border-radius: 12px;
-    }
   </style>
 </head>
 <body>
+  <canvas id="stars"></canvas>
 
-  <div class="tabs">
-    <button class="tab-button active" onclick="switchTab('routeTab')">Distance Calculator</button>
-    <button class="tab-button" onclick="switchTab('mapTab')">Galactic Map</button>
-  </div>
+  <div class="container">
+    <h2>Elite Dangerous Route Planner</h2>
 
-  <!-- Distance Calculator -->
-  <div id="routeTab" class="tab-content active">
-    <div class="container">
-      <h2>Elite Dangerous Route Planner</h2>
-
-      <div class="autocomplete-suggestions">
-        <input type="text" id="system1" placeholder="Origin (system only)" autocomplete="off" />
-        <div id="suggestions1" class="suggestions"></div>
-      </div>
-
-      <div class="autocomplete-suggestions">
-        <input type="text" id="system2" placeholder="Destination (system only)" autocomplete="off" />
-        <div id="suggestions2" class="suggestions"></div>
-      </div>
-
-      <input type="number" id="jumpRange" placeholder="Jump range (LY)" />
-      <button onclick="calculateDistance()">Calculate Route</button>
-      <div id="loader" class="spinner" style="display:none;"></div>
-      <p id="result"></p>
+    <div class="autocomplete-suggestions">
+      <input type="text" id="system1" placeholder="Origin (system only)" autocomplete="off" />
+      <div id="suggestions1" class="suggestions"></div>
     </div>
+
+    <div class="autocomplete-suggestions">
+      <input type="text" id="system2" placeholder="Destination (system only)" autocomplete="off" />
+      <div id="suggestions2" class="suggestions"></div>
+    </div>
+
+    <input type="number" id="jumpRange" placeholder="Jump range (LY)" />
+
+    <button onclick="calculateDistance()">Calculate Route</button>
+    <div id="loader" class="spinner" style="display:none;"></div>
+    <p id="result"></p>
   </div>
 
-  <!-- Galactic Map -->
-  <div id="mapTab" class="tab-content">
-    <div class="container">
-      <h2>Galactic Mapping Project</h2>
-      <iframe src="https://www.edsm.net/en/galactic-mapping#2/40/0/28125" title="Galactic Map"></iframe>
-    </div>
-  </div>
+  <!-- Optional: Embed Galactic Map -->
+  <!-- <iframe src="https://www.edsm.net/en/galactic-mapping#2/40/0/28125" style="width:100%;height:600px;border:none;margin-bottom:20px;"></iframe> -->
 
   <p class="footer">Created by <strong>CMDR Eron Vex</strong> · Version 1.0</p>
 
   <script>
-    function switchTab(tabId) {
-      document.querySelectorAll(".tab-button").forEach(btn => btn.classList.remove("active"));
-      document.querySelectorAll(".tab-content").forEach(tab => tab.classList.remove("active"));
-      document.getElementById(tabId).classList.add("active");
-      event.target.classList.add("active");
-    }
-
     async function fetchSystemSuggestions(query) {
-      const res = await fetch(`https://www.edsm.net/api-v1/systems?systemName=${encodeURIComponent(query)}&showId=1&limit=5`);
-      const data = await res.json();
+      const response = await fetch(`https://www.edsm.net/api-v1/systems?systemName=${encodeURIComponent(query)}&showId=1&limit=5`);
+      const data = await response.json();
       return Array.isArray(data) ? data.map(s => s.name) : [];
     }
 
-    function setupAutocomplete(inputId, suggestionsId) {
+    function setupSystemAutocomplete(inputId, suggestionsId) {
       const input = document.getElementById(inputId);
-      const box = document.getElementById(suggestionsId);
+      const suggestionsBox = document.getElementById(suggestionsId);
 
       input.addEventListener("input", async () => {
         const query = input.value.trim();
-        box.innerHTML = "";
+        suggestionsBox.innerHTML = "";
         if (query.length < 3) return;
 
         try {
@@ -210,27 +167,27 @@
             div.textContent = name;
             div.onclick = () => {
               input.value = name;
-              box.innerHTML = "";
+              suggestionsBox.innerHTML = "";
             };
-            box.appendChild(div);
+            suggestionsBox.appendChild(div);
           });
         } catch (err) {
-          console.error(err);
+          console.error("Autocomplete error:", err);
         }
       });
 
       input.addEventListener("blur", () => {
-        setTimeout(() => box.innerHTML = "", 200);
+        setTimeout(() => suggestionsBox.innerHTML = "", 200);
       });
     }
 
-    setupAutocomplete("system1", "suggestions1");
-    setupAutocomplete("system2", "suggestions2");
+    setupSystemAutocomplete("system1", "suggestions1");
+    setupSystemAutocomplete("system2", "suggestions2");
 
     async function getSystemCoords(name) {
-      const res = await fetch(`https://www.edsm.net/api-v1/system?systemName=${encodeURIComponent(name)}&showCoordinates=1`);
-      const data = await res.json();
-      if (data?.coords) return data.coords;
+      const sysRes = await fetch(`https://www.edsm.net/api-v1/system?systemName=${encodeURIComponent(name)}&showCoordinates=1`);
+      const sysData = await sysRes.json();
+      if (sysData?.coords) return sysData.coords;
       throw new Error(`"${name}" not found as system.`);
     }
 
@@ -278,6 +235,41 @@
 
       showLoader(false);
     }
+
+    // Starfield
+    const canvas = document.getElementById("stars");
+    const ctx = canvas.getContext("2d");
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+
+    resizeCanvas();
+    window.addEventListener("resize", resizeCanvas);
+
+    const stars = Array.from({ length: 150 }, () => ({
+      x: Math.random() * window.innerWidth,
+      y: Math.random() * window.innerHeight,
+      radius: Math.random() * 1.2,
+      alpha: Math.random(),
+      delta: (Math.random() * 0.02) + 0.005,
+    }));
+
+    function drawStars() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      stars.forEach(star => {
+        star.alpha += star.delta;
+        if (star.alpha <= 0 || star.alpha >= 1) star.delta *= -1;
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${star.alpha})`;
+        ctx.fill();
+      });
+      requestAnimationFrame(drawStars);
+    }
+
+    drawStars();
   </script>
 </body>
 </html>
